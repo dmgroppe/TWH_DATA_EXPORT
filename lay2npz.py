@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import sys
 import pandas as pd
 import layread as lr
 import matplotlib
@@ -8,12 +9,23 @@ import matplotlib.pyplot as plt
 import scipy.signal as sig
 import re
 import pickle
+import scipy.io as sio
 from datetime import datetime
 
 ##### USEFUL FUNCTIONS #####
 def rm_bad_chans(patient_id,ieeg,chan_names):
-    # Load names of artifact ridden channels from text file
-    # If the channel names ends in "?", that means it may have usable data
+    """ Load names of artifact ridden channels from text file and removes them. Text file should be in
+    BAD_CHANS subdirectory and called something like TWH001_bad_chans.txt
+    If the channel names ends in "?", that means it may have usable data
+     Inputs:
+       patient_id: string (e.g., 'TWH001')
+       ieeg: numpy matrix of iEEG data
+       chan_names: list of channel names
+
+     Outputs:
+       ieeg: numpy matrix of iEEG data with bad channels removed
+       chan_names: list of channel names with bad channels removed"""
+
     in_fname=os.path.join('BAD_CHANS',patient_id+'_bad_chans.txt')
     if os.path.isfile(in_fname):
         df=pd.read_csv(in_fname,header=None)
@@ -43,10 +55,17 @@ def rm_bad_chans(patient_id,ieeg,chan_names):
     return ieeg, chan_names
 
 
-def get_szr_bool(annot, n_tpt):
+def get_szr_class(annot, n_tpt):
+    """ Creats a numpy array that indicates for each time point if it is in a seizure or not according to annotations.
+     onset_text and offset_text lists below indicate the annotation strings used to mark seizure onset and offset.
+     Inputs:
+        annot: The dict of lay file annotations
+        n_tpt: The number of time points in the clip"""
+
     # Note, I assume that annotations in annot ordered from earliest to latest occurrence
     # TODO: double check
-    szr_bool = np.zeros(n_tpt, dtype=bool)  # default=no seizures
+    # TODO: makes this use three values 0, 1, 2 for non-seizure, subclinical seizure, and clinical seizure
+    szr_class = np.zeros(n_tpt, dtype='int8')  # default=no seizures
     onset_text = ['szr onset', 'sz onset']
     offset_text = ['szr offset', 'sz offset']
 
@@ -60,7 +79,7 @@ def get_szr_bool(annot, n_tpt):
     for a in annot_text:
         if a in offset_text:
             offset_first = 1
-            szr_bool = szr_bool + True
+            szr_class = szr_class + True
             break
         elif a in onset_text:
             offset_first = 0
@@ -72,32 +91,25 @@ def get_szr_bool(annot, n_tpt):
         for ct, a in enumerate(annot):
             if annot_text[ct] in onset_text:
                 # Szr onset
-                szr_bool[a['sample']:] = True
+                szr_class[a['sample']:] = True
             elif annot_text[ct] in offset_text:
                 # Szr offset
-                szr_bool[a['sample']:] = False
+                szr_class[a['sample']:] = False
     else:
         print('No szrs found in these data')
-    return szr_bool
+    return szr_class
 
 
 
-## THIS IS THE WHOLE WORKFLOW ##
-## Start of main function
-# TODO read path to files from command line
-# if len(sys.argv)==1:
-#     print('Usage: train_smart_srch_multi_patient.py srch_params.json')
-#     exit()
-# if len(sys.argv)!=2:
-#     raise Exception('Error: train_smart_srch_multi_patient.py requires 1 argument: srch_params.json')
-#
-# # Import Parameters from json file
-# param_fname=sys.argv[1]
-# print('Importing model parameters from %s' % param_fname)
-# with open(param_fname) as param_file:
-#     params=json.load(param_file)
-# model_name=params['model_name']
+### START OF MAIN FUNCTION ###
+if len(sys.argv)==1:
+    print('Usage: lay2npz.py lay_file_and path')
+    exit()
+if len(sys.argv)!=2:
+    raise Exception('Error: lay2npz.py requires 1 argument: lay_file_and path')
 
+# Import Parameters from json file
+lay_fname=sys.argv[1]
 
 # Load file
 #lay_fname='/media/dgroppe/ValianteLabEuData/PERSYST_DATA/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay'
@@ -106,7 +118,7 @@ def get_szr_bool(annot, n_tpt):
 #lay_fname='/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/DATA_SBOX/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay'
 
 # 1 day clip with 3 szrs
-lay_fname='/Users/davidgroppe/ONGOING/PERSYST_DATA_LONG/TWH056/TWH056_ShGa_dbf43bc5-601b-4e71-9b2d-175ea763242f-archive.lay'
+#lay_fname='/Users/davidgroppe/ONGOING/PERSYST_DATA_LONG/TWH056/TWH056_ShGa_dbf43bc5-601b-4e71-9b2d-175ea763242f-archive.lay'
 
 [hdr, ieeg]=lr.layread(lay_fname)
 [n_chan, n_tpt]=ieeg.shape
@@ -155,9 +167,14 @@ day_since_implant=day_dlt_dt.days
 clip_hdr['starttime']=lr.starttime_anon(hdr['starttime'])
 print('Start time is %s' % clip_hdr['starttime'])
 
-# TODO Set szr_bool
-#szr_bool=np.zeros(n_tpt, dtype=bool)
-szr_bool=get_szr_bool(clip_hdr['annotations'],n_tpt)
+# TODO Set szr_class
+#szr_class=np.zeros(n_tpt, dtype=bool)
+szr_class=get_szr_class(clip_hdr['annotations'],n_tpt)
+
+# Have a separate output directory for each patient
+out_path=os.path.join('PY_DATA',clip_hdr['patient_id'])
+if os.path.isdir(out_path)==False:
+    os.makedirs(out_path)
 
 # Save data in 1 hour clips
 clip_ct=0 # TODO, retrieve this from CSV?
@@ -168,18 +185,32 @@ while cursor<n_tpt:
     print('Working on subclip %d' % subclip_ct)
     stop_id=np.min([n_tpt, cursor+n_tpt_per_hour])
     print('{} {}'.format(cursor,stop_id))
-    ieeg_fname_npz=clip_hdr['patient_id']+'_Day-'+str(day_since_implant)+'_Clip-'+str(clip_ct)+'-'+str(subclip_ct)
-    print('Saving clip %s' % ieeg_fname_npz)
-    np.savez(ieeg_fname_npz,
+    ieeg_fname=clip_hdr['patient_id']+'_Day-'+str(day_since_implant)+'_Clip-'+str(clip_ct)+'-'+str(subclip_ct)
+    print('Saving clip %s' % ieeg_fname)
+    # Save numeric data in NPZ format
+    np.savez(os.path.join(out_path,ieeg_fname),
             ieeg=ieeg[:,cursor:stop_id],
             ieeg_mn=ieeg_mn[cursor:stop_id],
-            szr_bool=szr_bool[cursor:stop_id],
+            szr_class=szr_class[cursor:stop_id],
             time_of_day_sec=time_of_day_sec[cursor:stop_id],
             srate_hz=clip_hdr['srate_hz'],
             day_since_implant=day_since_implant)
+
+    # Save numeric data in MATLAB format
+    # mat_dict=dict()
+    # mat_dict['ieeg']=ieeg[:, cursor:stop_id]
+    # mat_dict['ieeg_mn']=ieeg_mn[cursor:stop_id]
+    # mat_dict['szr_class']=szr_class[cursor:stop_id]
+    # mat_dict['time_of_day_sec']=time_of_day_sec[cursor:stop_id]
+    # mat_dict['srate_hz']=clip_hdr['srate_hz']
+    # sio.savemat(os.path.join(out_path,ieeg_fname), mat_dict)
+
+    # Save header dict via pickle
     if subclip_ct==0:
         hdr_fname = clip_hdr['patient_id'] + '_Day-' + str(day_since_implant) + '_Clip-' + str(clip_ct)+'_hdr.pkl'
-        pickle.dump(clip_hdr, open(hdr_fname, 'wb'))
+        pickle.dump(clip_hdr, open(os.path.join(out_path,hdr_fname), 'wb'))
+    # TODO save header in a format that MATLAB can read?
+
     cursor=stop_id
     subclip_ct+=1
 
