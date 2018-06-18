@@ -162,13 +162,11 @@ clip_day_dt=datetime.strptime(clip_day_str,'%d-%b-%Y')
 day_dlt_dt=clip_day_dt-implant_day_dt
 day_since_implant=day_dlt_dt.days
 
-
 # Get start time without year
 clip_hdr['starttime']=lr.starttime_anon(hdr['starttime'])
 print('Start time is %s' % clip_hdr['starttime'])
 
-# TODO Set szr_class
-#szr_class=np.zeros(n_tpt, dtype=bool)
+# TODO Make szr_class 0,1, or 2 (1=subclinical szr, 2=clinical szr)
 szr_class=get_szr_class(clip_hdr['annotations'],n_tpt)
 
 # Have a separate output directory for each patient
