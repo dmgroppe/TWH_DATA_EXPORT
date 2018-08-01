@@ -3,7 +3,7 @@ import os
 import sys
 import pandas as pd
 import layread as lr
-import matplotl
+import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import scipy.signal as sig
@@ -127,8 +127,8 @@ def do_channels_match(patient_folder):
 def gen_electrode_info(filename, coordsfile):  #filename is the .lay filename and path. coordsfile is from the bioImage Freesurfer folder (with path)
     title = filename + "_electrodes"
 
-    open(coordsfile, 'r') as f:
-    coords = [line.strip() for line in f]
+    with open(coordsfile, 'r') as f:
+        coords = [line.strip() for line in f]
     file = open(filename+'_coords.txt')
     for channel in hdr['rawheader']['channelmap']:
         file.write(channel + " " + coords + "\n")
@@ -139,26 +139,24 @@ def gen_electrode_info(filename, coordsfile):  #filename is the .lay filename an
 
 
 ### START OF MAIN FUNCTION ###
+if len(sys.argv) == 1:
+    print('Usage: preproc_lay_batch.py lay_root_folder')
+    exit()
+if len(sys.argv) != 2:
+    raise Exception('Error: lay2npz.py requires 1 argument: lay_root_folder')
+lay_root = sys.argv[1]
 
-annotation_csv = open("annotations.csv" "w") # TODO Fix/define the path?
+annotation_fname=os.path.join(lay_root,"annotations.csv")
+annotation_csv = open(annotation_fname,"w") # TODO Fix/define the path?
 
 annotation_list = []
 
-for folder in os.listdir(TWHDataExport):  # TODO double check to ensure appropriate folder/location
-
+for folder in os.listdir(lay_root):  # TODO double check to ensure appropriate folder/location
     if do_channels_match(folder) == False:
         raise Exception('Error: There is a mismatch in channel labels')
         continue
 
     for filename in os.listdir(folder):
-
-        if len(sys.argv) == 1:
-            print('Usage: lay2npz.py lay_file_and path')
-            exit()
-        if len(sys.argv) != 2:
-            raise Exception('Error: lay2npz.py requires 1 argument: lay_file_and path')
-
-
         # Import Parameters from json file
         lay_fname = sys.argv[1]
 
@@ -229,7 +227,7 @@ for folder in os.listdir(TWHDataExport):  # TODO double check to ensure appropri
 
         # Have a separate output directory for each patient
         out_path=os.path.join('PY_DATA',clip_hdr['patient_id'])
-        if os.path.isdir(out_path)==False:`
+        if os.path.isdir(out_path)==False:
             os.makedirs(out_path)
 
         # Sonali - write events/annotations to a dataframe
