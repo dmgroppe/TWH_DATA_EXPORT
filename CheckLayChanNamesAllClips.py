@@ -1,18 +1,12 @@
-
-# coding: utf-8
-
-# This code reads the channel names from a lay files to see make sure the names are all the same
-
-# In[2]:
-
+# This code reads the channel names from all lay files to see make sure the names are all the same
+# It also checks to make sure all channel names are unique. If any lay files have different montages the
+# user can move them into a subdirectory so that they are not processed further.
 
 import numpy as np
 import pandas as pd
-import os 
+import os
+import sys
 import layread as lr
-
-
-# In[ ]:
 
 
 def checkUnique(nameList):
@@ -24,43 +18,42 @@ def checkUnique(nameList):
         raise Exception('Two or more channels have the exact same name.')
 
 
-# In[29]:
+# Start of main function
+if len(sys.argv) == 1:
+    print('Usage: checkLayChanNamesAllClips.py subName (e.g., checkLayChanNamesAllClips.py TWH081)')
+    exit()
+if len(sys.argv) != 2:
+    raise Exception('Error: checkLayChanNamesAllClips.py requires 1 argument: subName')
 
+# Import Parameters from json file
+sub = sys.argv[1]
+print('Checking channel name consistency for %s' % sub)
 
-root_dir="/Volumes/Seagate Expansion Drive/PersystFormat/TWH081"
+#rootDir="/Volumes/Seagate Expansion Drive/PersystFormat/TWH081"
+rootDir=os.path.join('/media/dgroppe/Seagate Expansion Drive/PersystFormat/',sub)
 lay_fnames=list()
-for f in os.listdir(root_dir):
+for f in os.listdir(rootDir):
     if f.endswith('.lay'):
         lay_fnames.append(f)
 print('%d lay files found' % len(lay_fnames))
 
-
-# In[30]:
-
-
-print(lay_fnames[1])
-
-
-# In[41]:
-
-
 # Get channel names from first file
-[eegHdr, eegData]=lr.layread(os.path.join(root_dir,lay_fnames[0]),importDat=False)
+[eegHdr, eegData]=lr.layread(os.path.join(rootDir,lay_fnames[0]),importDat=False)
 layChanMap=eegHdr['rawheader']['channelmap']
 
-# TODO make sure channel names are unique
+# Make sure channel names are unique
+checkUnique(layChanMap)
 
 # Loop over remaining lay files to see if channel names are compatible
 altChanMaps=list()
-altChanMapFname=list()
+altChanMapFnames=list()
 for f in lay_fnames[1:]:
-#for f in lay_fnames[1:2]:
-    [eegHdr, eegData]=lr.layread(os.path.join(root_dir,f),importDat=False)
+    [eegHdr, eegData]=lr.layread(os.path.join(rootDir,f),importDat=False)
     tempLayChanMap=eegHdr['rawheader']['channelmap']
     if tempLayChanMap!=layChanMap:
         print('Channel names in file %s NOT the Same!' % f)
         altChanMaps.append(tempLayChanMap.copy())
-        altChanMapFname.append(f)
+        altChanMapFnames.append(f)
         if len(tempLayChanMap)==len(layChanMap):
             print('They have the same # of chans')
         else:
@@ -68,21 +61,29 @@ for f in lay_fnames[1:]:
     else:
         print('Same!')
 
+# Print channel names side by side for each file that doesn't match the first file
+nAltChanMaps=len(altChanMaps)
+if nAltChanMaps>0:
+    for id in range(nAltChanMaps):
+        print('AltMap file #%d %s' % (id,altChanMapFnames[id]))
+        print('FirstLayFile\tAltMap')
+        for a in range(len(layChanMap)):
+            print('%s\t%s' % (layChanMap[a],altChanMaps[id][a]))
+        print()
 
-# In[44]:
-
-
-for id in range(len(altChanMaps)):
-    print('AltMap file #%d %s' % (id,altChanMapFname[id]))
-    print('FirstLayFile\tAltMap')
-    for a in range(len(layChanMap)):
-        print('%s\t%s' % (layChanMap[a],altChanMaps[id][a]))
-    print()
-
-
-# In[ ]:
-
-
-# Ask user if mismatched channel names should be moved to a new directory
-#TODO
-
+    # Ask user if mismatched channel names should be moved to a new directory
+    print('Should the %d files with channel names that do not match first file be moved to a subdirectory?' % len(altChanMaps))
+    resp=input('y/n: ')
+    if resp=='y':
+        newDir=os.path.join(rootDir,'DIF_CHAN_NAMES')
+        try:
+            os.mkdir(newDir)
+        except OSError:
+            print ("Creation of the directory %s failed" % newDir)
+        else:
+            print ("Successfully created the directory %s " % newDir)
+        print('Moving the files to %s' % newDir)
+        for f in altChanMapFnames:
+            os.rename(os.path.join(rootDir,f), os.path.join(newDir,f))
+    else:
+        print('Not moving!')
