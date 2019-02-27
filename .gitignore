@@ -1,7 +1,11 @@
 *.ipynb
+EPLINK
+PY_DATA
 DATA_SBOX
 .ipynb_checkpoints
 ONSET_TIMES
 MATLAB
+PRIVATE
+LAY2IELVIS_MAPS
 *.npz
 *.pkl

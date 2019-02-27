@@ -1,3 +1,6 @@
+""" This function takes a lay file (Persyst data file), removes bad channels, converts to avg ref, and saves
+the data to disk in max-1 hour clips. Annotations are also saved."""
+
 import numpy as np
 import os
 import sys
