@@ -103,16 +103,35 @@ def get_szr_class(annot, n_tpt):
     return szr_class
 
 
+def getImplantDate(sub_num_str):
+    # tsv file
+    implantTsv = 'PRIVATE/UpcomingImplantCandidates.tsv'
+    implantDf = pd.read_csv(implantTsv, sep='\t')
+
+    implantDate = ""
+    sub_id = 'TWH_' + sub_num_str
+    row_bool = implantDf['TWRI ID'] == sub_id
+    sum_bool = np.sum(row_bool)
+    if sum_bool == 0:
+        raise Exception("sub_id {} not found in {}".format(sub_id, implantTsv))
+    elif sum_bool > 1:
+        raise Exception("sub_id {} found more than once in {}".format(sub_id, implantTsv))
+    else:
+        implantDate = implantDf['Implant Date'][row_bool].values[0]
+        print("Implant date is %s" % implantDate)
+    return implantDate
+
 
 ### START OF MAIN FUNCTION ###
 if len(sys.argv)==1:
-    print('Usage: lay2npz.py lay_file_and path')
+    print('Usage: lay2npz.py lay_file_and_path subnum')
     exit()
-if len(sys.argv)!=2:
-    raise Exception('Error: lay2npz.py requires 1 argument: lay_file_and path')
+if len(sys.argv)!=3:
+    raise Exception('Error: lay2npz.py requires 2 arguments: lay_file_and_path subnum')
 
 # Import Parameters from json file
 lay_fname=sys.argv[1]
+subnum=sys.argv[2]
 
 # Load file
 #lay_fname='/media/dgroppe/ValianteLabEuData/PERSYST_DATA/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay'
@@ -158,8 +177,13 @@ clip_hdr['annotations']=lr.prune_annotations(hdr['annotations'])
 time_of_day_sec=lr.sample_times_sec(hdr['rawheader']['sampletimes'],n_tpt,1/hdr['samplingrate'])
 
 # Get day of recording relative to first date of electrode implantation
-implant_day_str='10-Jun-2015' # TODO pass this as arg, have it in text file someplace
-implant_day_dt=datetime.strptime(implant_day_str,'%d-%b-%Y')
+#implant_day_str='10-Jun-2015' # TODO pass this as arg, have it in text file someplace
+#implant_day_dt=datetime.strptime(implant_day_str,'%d-%b-%Y')
+implant_day_str=getImplantDate(subnum)
+implant_day_dt=datetime.strptime(implant_day_str,'%m/%d/%Y')
+print(implant_day_str)
+print(implant_day_dt)
+exit()
 clip_day_str=hdr['starttime'].split(' ')[0]
 clip_day_dt=datetime.strptime(clip_day_str,'%d-%b-%Y')
 day_dlt_dt=clip_day_dt-implant_day_dt
