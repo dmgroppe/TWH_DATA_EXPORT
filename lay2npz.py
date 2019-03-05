@@ -1,6 +1,5 @@
 """ This function takes a lay file (Persyst data file), removes bad channels, converts to avg ref, and saves
-the data to disk in max-1 hour clips. Annotations are also saved. Note, you need to manually create a text file in BAD
-_CHANS folder for the patient to indicate which channels are bad."""
+the data to disk in max-1 hour clips. Annotations are also saved."""
 
 import numpy as np
 import os
@@ -30,7 +29,6 @@ def rm_bad_chans(patient_id,ieeg,chan_names):
        ieeg: numpy matrix of iEEG data with bad channels removed
        chan_names: list of channel names with bad channels removed"""
 
-    #TODO replace manual labelling of bad channels with an automated classifier
     in_fname=os.path.join('BAD_CHANS',patient_id+'_bad_chans.txt')
     if os.path.isfile(in_fname):
         df=pd.read_csv(in_fname,header=None)
@@ -56,7 +54,7 @@ def rm_bad_chans(patient_id,ieeg,chan_names):
         ieeg=ieeg[keep_ids,:]
         chan_names=keep_chan_names
     else:
-        print('Could not find %s, which lists artifactual channels. No channels rejected.' % in_fname)
+        print('Could not find %s, which lists artifactual channels' % in_fname)
     return ieeg, chan_names
 
 
@@ -105,17 +103,35 @@ def get_szr_class(annot, n_tpt):
     return szr_class
 
 
+def getImplantDate(sub_num_str):
+    # tsv file
+    implantTsv = 'PRIVATE/UpcomingImplantCandidates.tsv'
+    implantDf = pd.read_csv(implantTsv, sep='\t')
+
+    implantDate = ""
+    sub_id = 'TWH_' + sub_num_str
+    row_bool = implantDf['TWRI ID'] == sub_id
+    sum_bool = np.sum(row_bool)
+    if sum_bool == 0:
+        raise Exception("sub_id {} not found in {}".format(sub_id, implantTsv))
+    elif sum_bool > 1:
+        raise Exception("sub_id {} found more than once in {}".format(sub_id, implantTsv))
+    else:
+        implantDate = implantDf['Implant Date'][row_bool].values[0]
+        print("Implant date is %s" % implantDate)
+    return implantDate
+
 
 ### START OF MAIN FUNCTION ###
 if len(sys.argv)==1:
-    print('Usage: lay2npz.py layFileAndPath firstDayOfRecording (e.g., /media/A/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay 10-Jun-2015)')
+    print('Usage: lay2npz.py lay_file_and_path subnum')
     exit()
-if len(sys.argv)!=2:
-    raise Exception('Error: lay2npz.py requires 2 args: lay_file_and path firstDayOfRecording')
+if len(sys.argv)!=3:
+    raise Exception('Error: lay2npz.py requires 2 arguments: lay_file_and_path subnum')
 
 # Import Parameters from json file
 lay_fname=sys.argv[1]
-implant_day_str=sys.argv[2]
+subnum=sys.argv[2]
 
 # Load file
 #lay_fname='/media/dgroppe/ValianteLabEuData/PERSYST_DATA/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay'
@@ -162,7 +178,12 @@ time_of_day_sec=lr.sample_times_sec(hdr['rawheader']['sampletimes'],n_tpt,1/hdr[
 
 # Get day of recording relative to first date of electrode implantation
 #implant_day_str='10-Jun-2015' # TODO pass this as arg, have it in text file someplace
-implant_day_dt=datetime.strptime(implant_day_str,'%d-%b-%Y')
+#implant_day_dt=datetime.strptime(implant_day_str,'%d-%b-%Y')
+implant_day_str=getImplantDate(subnum)
+implant_day_dt=datetime.strptime(implant_day_str,'%m/%d/%Y')
+print(implant_day_str)
+print(implant_day_dt)
+exit()
 clip_day_str=hdr['starttime'].split(' ')[0]
 clip_day_dt=datetime.strptime(clip_day_str,'%d-%b-%Y')
 day_dlt_dt=clip_day_dt-implant_day_dt
@@ -189,8 +210,7 @@ while cursor<n_tpt:
     print('Working on subclip %d' % subclip_ct)
     stop_id=np.min([n_tpt, cursor+n_tpt_per_hour])
     print('{} {}'.format(cursor,stop_id))
-    # TODO check that clips from this day do not already exist?
-    #     ieeg_fname=clip_hdr['patient_id']+'_Day-'+str(day_since_implant)+'_Clip-'+str(clip_ct)+'-'+str(subclip_ct)
+    ieeg_fname=clip_hdr['patient_id']+'_Day-'+str(day_since_implant)+'_Clip-'+str(clip_ct)+'-'+str(subclip_ct)
     print('Saving clip %s' % ieeg_fname)
     # Save numeric data in NPZ format
     np.savez(os.path.join(out_path,ieeg_fname),
