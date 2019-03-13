@@ -16,6 +16,39 @@ import scipy.io as sio
 from datetime import datetime
 
 ##### USEFUL FUNCTIONS #####
+def import_szr_info(patient_id):
+    """ Import seizure onset/offset as date time variables and szr type (clinical, electrographic, or unspecified) from
+     a tsv file that has been produced from the master Excel spreadsheet"""
+
+    # Import tsf file of onset/offset times & szr types TODO make path relative or an arg
+    szrTimeFname = "/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/PRIVATE/SZR_TIMES/TWH081_SzrOnset.tsv"
+    szrTimeDf = pd.read_csv(szrTimeFname, sep='\t')
+
+    # Collect Szr Types
+    szrType = list()
+    for szr in szrTimeDf['class']:
+        szrType.append(szr)
+    print(szrType)
+
+    # Collect Szr Onset & Offset Times
+    szrOnsetDt = list()
+    szrOffsetDt = list()
+    for ct, onsetDate in enumerate(szrTimeDf['actual date']):
+        onsetTime = szrTimeDf['start time'][ct]
+        offsetTime = szrTimeDf['end time'][ct]
+        onsetDtStr = onsetDate + " " + onsetTime
+        szrOnsetDt.append(datetime.strptime(onsetDtStr, '%Y-%m-%d %H:%M:%S'))
+        offsetDtStr = onsetDate + " " + offsetTime
+        szrOffsetDt.append(datetime.strptime(offsetDtStr, '%Y-%m-%d %H:%M:%S'))
+        if datetime.strptime(offsetTime, '%H:%M:%S') < datetime.strptime(onsetTime, '%H:%M:%S'):
+            # Seizure offset must be on the day after the onset
+            szrOffsetDt += datetime.timedelta(days=1)
+
+    print(szrOnsetDt)
+    print(szrOffsetDt)
+    return szrOnsetDt, szrOffsetDt, szrType
+
+
 def rm_bad_chans(patient_id,ieeg,chan_names):
     """ Load names of artifact ridden channels from text file and removes them. Text file should be in
     BAD_CHANS subdirectory and called something like TWH001_bad_chans.txt
@@ -58,7 +91,51 @@ def rm_bad_chans(patient_id,ieeg,chan_names):
     return ieeg, chan_names
 
 
-def get_szr_class(annot, n_tpt):
+def inSzr(timePt,szrOnsetSec,szrOffsetSec):
+    """ Also Yo """
+    nSzr=len(szrOnsetSec)
+    szrId=0
+    for a in range(nSzr):
+        if (timePt>=szrOnsetSec[a]) and (timePt<=szrOffsetSec[a]):
+            szrId=a
+            break
+    return szrId
+
+
+def getSzrClass(secondsSinceImplant,subnum,implantDateDt):
+    """ Yo. PICKUP HERE """
+    nTpt=len(secondsSinceImplant)
+    szrClass=np.zeros(nTpt) # 0=non-szr, 1=clinical szr, 2=subclinical szr, 3=szr of unknown type
+    (szrOnsetDt, szrOffsetDt, szrType) = import_szr_info(subnum)
+
+    # Convert szr onset and offset times into the # of seconds since midnight (I think) on the day of the implant
+    # since that corresponds to time 0 in secondsSinceImplant
+    nSzr=len(szrOnsetDt)
+    szrOnsetSec=np.zeros(nSzr)
+    szrOffsetSec=np.zeros(nSzr)
+    for a in range(nSzr):
+        szrOnsetSec[a]=(szrOnsetDt[a]-implantDateDt).total_seconds()
+        szrOffsetSec[a] = (szrOffsetDt[a] - implantDateDt).total_seconds()
+    # Loop over all time points to see if they lie within a szr
+    for a in range(nTpt):
+        szrId=inSzr(secondsSinceImplant[a],szrOnsetSec,szrOffsetSec)
+        if szrId>0:
+            szrClass[a]=szrType2Num(szrType[szrId])
+
+    return szrClass
+
+def szrType2Num(szrTypeStr):
+    #0=non-szr, 1=clinical szr, 2=subclinical szr, 3=szr of unknown type
+    szrType=3
+    if szrTypeStr.lower=='clinical':
+        szrType=1
+    elif szrTypeStr.lower=='electrographic':
+        szrType = 2
+    else:
+        print('Warning unknown szr type, %s, in patient *_SzrOnset.tsv file' % szrTypeStr)
+
+# not gold standard but can help double check
+def get_szr_class_from_annotations(annot, n_tpt):
     """ Creats a numpy array that indicates for each time point if it is in a seizure or not according to annotations.
      onset_text and offset_text lists below indicate the annotation strings used to mark seizure onset and offset.
      Inputs:
@@ -142,7 +219,10 @@ subnum=sys.argv[2]
 # 1 day clip with 3 szrs
 #lay_fname='/Users/davidgroppe/ONGOING/PERSYST_DATA_LONG/TWH056/TWH056_ShGa_dbf43bc5-601b-4e71-9b2d-175ea763242f-archive.lay'
 
-[hdr, ieeg]=lr.layread(lay_fname)
+[hdr, ieeg]=lr.layread(lay_fname,importDat=True)
+#[hdr, ieeg]=lr.layread(lay_fname,importDat=False) # TODO undo false, just using false for developing
+# TODO remove this!!!!
+#ieeg=np.zeros((125,1000))
 [n_chan, n_tpt]=ieeg.shape
 print('%d timepoints read (i.e., %f hours)' % (n_tpt,n_tpt/(3600*hdr['samplingrate'])))
 print('Total # of channels: %d' % n_chan)
@@ -164,42 +244,59 @@ ieeg, clip_hdr['channel_names']=lr.rm_event_chan(ieeg,clip_hdr['channel_names'])
 print('Removing "-ref" suffix from channel names ')
 clip_hdr['channel_names']=lr.tidy_chan_names(clip_hdr['channel_names'])
 
-# Remove artifactual channels
+# Remove artifactual channels TODO remove this?
 ieeg, clip_hdr['channel_names']=rm_bad_chans(clip_hdr['patient_id'],ieeg,clip_hdr['channel_names'])
 
-# Convert Data to Avg Ref
-ieeg, ieeg_mn=lr.avg_ref(ieeg)
+# Convert Data to Avg Ref TODO remove this?
+# ieeg, ieeg_mn=lr.avg_ref(ieeg)
 
 # Prune annotations TODO need to collect when szrs start/stop
 clip_hdr['annotations']=lr.prune_annotations(hdr['annotations'])
 
 # Get time in seconds corresponding to each time point
 time_of_day_sec=lr.sample_times_sec(hdr['rawheader']['sampletimes'],n_tpt,1/hdr['samplingrate'])
+print(len(time_of_day_sec))
+print(time_of_day_sec[:5])
 
 # Get day of recording relative to first date of electrode implantation
-#implant_day_str='10-Jun-2015' # TODO pass this as arg, have it in text file someplace
-#implant_day_dt=datetime.strptime(implant_day_str,'%d-%b-%Y')
 implant_day_str=getImplantDate(subnum)
 implant_day_dt=datetime.strptime(implant_day_str,'%m/%d/%Y')
-print(implant_day_str)
-print(implant_day_dt)
-exit()
+
 clip_day_str=hdr['starttime'].split(' ')[0]
 clip_day_dt=datetime.strptime(clip_day_str,'%d-%b-%Y')
 day_dlt_dt=clip_day_dt-implant_day_dt
-day_since_implant=day_dlt_dt.days
+days_since_implant=day_dlt_dt.days
+seconds_since_implant=time_of_day_sec+day_dlt_dt.days*24*60*60
 
 # Get start time without year
+print("hdr starttime is {}".format(hdr['starttime']))
 clip_hdr['starttime']=lr.starttime_anon(hdr['starttime'])
 print('Start time is %s' % clip_hdr['starttime'])
+print("This is %d day(s) since implantation" % days_since_implant)
 
-# TODO Make szr_class 0,1, or 2 (1=subclinical szr, 2=clinical szr)
-szr_class=get_szr_class(clip_hdr['annotations'],n_tpt)
+# TODO Make szr_class 0,1, or 2 (1=subclinical szr, 2=clinical szr, 3=szr of unknown type)
+#szr_class=get_szr_class(clip_hdr['annotations'],n_tpt)
+#szr_class_annot=get_szr_class_from_annotations(clip_hdr['annotations'],n_tpt)
+#should work: szr_class=getSzrClass(seconds_since_implant,subnum,implant_day_dt)
+#print('sum szr_class=%d' % np.sum(szr_class))
 
 # Have a separate output directory for each patient
 out_path=os.path.join('PY_DATA',clip_hdr['patient_id'])
 if os.path.isdir(out_path)==False:
     os.makedirs(out_path)
+
+# Limit time_of_day_sec range to 0-24*3600
+time_of_day_sec=time_of_day_sec%(24*3600)
+
+# np.savez(os.path.join(out_path,'tempTWH081.npz'),
+#          ieeg=ieeg,
+#          time_of_day_sec=time_of_day_sec,
+#          seconds_since_implant=seconds_since_implant,
+#          srate_hz=clip_hdr['srate_hz'],
+#          lay_fname=lay_fname,
+#          days_since_implant=days_since_implant)
+pickle.dump(clip_hdr,open(os.path.join(out_path,'tempTWH081.pkl'),'wb')) # TODO remove full date from header+annotations
+# grab annotations for just the events in the clipped file
 
 # Save data in 1 hour clips
 clip_ct=0 # TODO, retrieve this from CSV?
@@ -210,7 +307,8 @@ while cursor<n_tpt:
     print('Working on subclip %d' % subclip_ct)
     stop_id=np.min([n_tpt, cursor+n_tpt_per_hour])
     print('{} {}'.format(cursor,stop_id))
-    ieeg_fname=clip_hdr['patient_id']+'_Day-'+str(day_since_implant)+'_Clip-'+str(clip_ct)+'-'+str(subclip_ct)
+    # output file name of clip TODO add time of clip onset to ieeg_fname
+    ieeg_fname=clip_hdr['patient_id']+'_Day-'+str(days_since_implant)+'_Clip-'+str(clip_ct)+'-'+str(subclip_ct)
     print('Saving clip %s' % ieeg_fname)
     # Save numeric data in NPZ format
     np.savez(os.path.join(out_path,ieeg_fname),
@@ -219,7 +317,7 @@ while cursor<n_tpt:
             szr_class=szr_class[cursor:stop_id],
             time_of_day_sec=time_of_day_sec[cursor:stop_id],
             srate_hz=clip_hdr['srate_hz'],
-            day_since_implant=day_since_implant)
+            days_since_implant=days_since_implant)
 
     # Save numeric data in MATLAB format
     # mat_dict=dict()
@@ -232,7 +330,7 @@ while cursor<n_tpt:
 
     # Save header dict via pickle
     if subclip_ct==0:
-        hdr_fname = clip_hdr['patient_id'] + '_Day-' + str(day_since_implant) + '_Clip-' + str(clip_ct)+'_hdr.pkl'
+        hdr_fname = clip_hdr['patient_id'] + '_Day-' + str(days_since_implant) + '_Clip-' + str(clip_ct)+'_hdr.pkl'
         pickle.dump(clip_hdr, open(os.path.join(out_path,hdr_fname), 'wb'))
     # TODO save header in a format that MATLAB can read?
 

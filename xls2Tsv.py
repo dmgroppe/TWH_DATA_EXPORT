@@ -24,7 +24,18 @@ df = xl.parse('TWH_'+sub)
 print("First 4 rows for %s" % sub)
 print(df.head())
 
-print('a\tb')
+# Double check that all the columns we need are there
+dfColNames=list(df.columns.values)
+# Convert to lowercase
+for ct, colName in enumerate(dfColNames):
+    dfColNames[ct]=colName.lower()
+df.columns=dfColNames
+neededCols=['actual date','start time', 'end time','class'] # all need to be lowercase
+for col in neededCols:
+    if col.lower() not in dfColNames:
+        print('ERROR: This spreadsheet is missing a column named %s' % col)
+        print('Exiting.')
+        exit()
 
 outfile=os.path.join('PRIVATE/SZR_TIMES','TWH'+sub+'_SzrOnset.tsv')
 print('Exporting spreadsheet as %s' % outfile)
