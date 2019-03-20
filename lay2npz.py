@@ -81,15 +81,16 @@ def getImplantDate(sub_num_str):
 ### START OF MAIN FUNCTION ###
 # TODO maybe just have filename as input and grab patient_id?
 if len(sys.argv)==1:
-    print('Usage: lay2npz.py lay_file_and_path patient_id (e.g., ../blah.lay TWH081)')
+    print('Usage: lay2npz.py lay_file_and_path patient_id out_dir (e.g., ../blah.lay TWH081)')
     exit()
-if len(sys.argv)!=3:
-    raise Exception('Error: lay2npz.py requires 2 arguments: lay_file_and_path patient_id')
+if len(sys.argv)!=4:
+    raise Exception('Error: lay2npz.py requires 3 arguments: lay_file_and_path patient_id out_dir')
 
 # Import Parameters from command line
 lay_fname=sys.argv[1]
 #  subnum=sys.argv[2]
 patient_id=sys.argv[2]
+out_dir=sys.argv[3]
 
 # Get first chunk of random part of filename to help identify clips from the same file
 lay_fname_code_prefix=lay_fname.split('_')[-1].split('-')[0]
@@ -167,7 +168,7 @@ print("This is %d day(s) since implantation" % days_since_implant)
 time_of_day_sec=time_of_day_sec%(24*3600)
 
 # Have a separate output directory for each patient
-out_path=os.path.join('PY_DATA',clip_hdr['patient_id'])
+out_path=os.path.join(out_dir,clip_hdr['patient_id'])
 if os.path.isdir(out_path)==False:
     os.makedirs(out_path)
 
