@@ -195,9 +195,9 @@ n_tpt_per_hour=clip_hdr['srate_hz']*3600
 subclip_ct=0
 while cursor<n_tpt:
     # Save header dict via pickle
-    if subclip_ct==0:
-        hdr_fname=clip_hdr['patient_id'] +'_'+lay_fname_code_prefix+'_hdr.pkl'
-        pickle.dump(clip_hdr, open(os.path.join(out_path,hdr_fname), 'wb'))
+    # if subclip_ct==0:
+    #     hdr_fname=clip_hdr['patient_id'] +'_'+lay_fname_code_prefix+'_hdr.pkl'
+    #     pickle.dump(clip_hdr, open(os.path.join(out_path,hdr_fname), 'wb'))
 
     print('Working on subclip %d' % subclip_ct)
     stop_id=np.min([n_tpt, cursor+n_tpt_per_hour])
