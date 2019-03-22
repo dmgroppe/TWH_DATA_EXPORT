@@ -97,19 +97,14 @@ lay_fname_code_prefix=lay_fname.split('_')[-1].split('-')[0]
 just_lay_fname=lay_fname.split('/')[-1]
 
 # Load file
-#lay_fname='/media/dgroppe/ValianteLabEuData/PERSYST_DATA/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay'
-#lay_fname='/Users/davidgroppe/ONGOING/PERSYST_DATA/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay'
-# short clip for code testing
-#lay_fname='/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/DATA_SBOX/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay'
-
-# 1 day clip with 3 szrs
-#lay_fname='/Users/davidgroppe/ONGOING/PERSYST_DATA_LONG/TWH056/TWH056_ShGa_dbf43bc5-601b-4e71-9b2d-175ea763242f-archive.lay'
-
-#[hdr, ieeg]=lr.layread(lay_fname,importDat=True)
-#TODO remove these debugging lines
-[hdr, ieeg]=lr.layread(lay_fname,importDat=True,timeLength=3600*1000+60*1000) #TODO
-#[hdr, ieeg]=lr.layread(lay_fname,importDat=False) # TODO undo false, just using false for developing
-#ieeg=np.zeros((125,1000))
+debug=False
+if debug: #TODO undo debugging
+    print('*********************** IN DEBUGGING MODE ***********************')
+    [hdr, ieeg] = lr.layread(lay_fname, importDat=True, timeLength=3600 * 1000 + 60 * 1000)
+    # [hdr, ieeg]=lr.layread(lay_fname,importDat=False) # TODO undo false, just using false for developing
+    # ieeg=np.zeros((125,1000))
+else:
+    [hdr, ieeg]=lr.layread(lay_fname,importDat=True)
 [n_chan, n_tpt]=ieeg.shape
 print('%d timepoints read (i.e., %f hours)' % (n_tpt,n_tpt/(3600*hdr['samplingrate'])))
 print('Total # of channels: %d' % n_chan)
@@ -172,12 +167,10 @@ out_path=os.path.join(out_dir,clip_hdr['patient_id'])
 if os.path.isdir(out_path)==False:
     os.makedirs(out_path)
 
-# Import/create tsv of annotations
-#annotFname='TWH'+subnum+'_'+lay_fname_code_prefix+'_annot.tsv'
+# Load/create dataframe of annotations: annotation/szr onset/offset, time since implant in sec,
+# clip filename, tpt in clip
 annotFname=patient_id+'_annot.tsv'
 annotFnameFull=os.path.join(out_path,annotFname)
-
-# Create dataframe of annotations: annotation/szr onset/offset, time since implant in sec, clip filename, tpt in clip
 if os.path.isfile(annotFnameFull):
     annot_df=pd.read_csv(annotFnameFull,sep='\t')
 else:
@@ -186,15 +179,12 @@ else:
     colNames = ['Annotation', 'SecondsSinceImplant', 'Duration', 'ClipFilename', 'ClipTpt']
     annot_df = pd.DataFrame(columns=colNames)
 
-
- # TODO remove full date from header+annotations
-
 # Save data in 1 hour clips
 cursor=0
 n_tpt_per_hour=clip_hdr['srate_hz']*3600
 subclip_ct=0
 while cursor<n_tpt:
-    # Save header dict via pickle
+    # Save header dict via pickle; If you want to do this, you need to remove year from clip_hdr annotations
     # if subclip_ct==0:
     #     hdr_fname=clip_hdr['patient_id'] +'_'+lay_fname_code_prefix+'_hdr.pkl'
     #     pickle.dump(clip_hdr, open(os.path.join(out_path,hdr_fname), 'wb'))
@@ -246,8 +236,9 @@ while cursor<n_tpt:
     cursor=stop_id
     subclip_ct+=1
 
+print('Saving dataframe of annotations to %s' % annotFname)
 annot_df.drop_duplicates(inplace=True)
 annot_df.to_csv(annotFnameFull,sep='\t',index=False)
-print('Saving dataframe of annotations to %s' % annotFname)
+
 
 print('Done exporting files')
