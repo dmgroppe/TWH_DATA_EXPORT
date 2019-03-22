@@ -10,7 +10,7 @@ if len(sys.argv)!=2:
 
 patientId=sys.argv[1]
 
-if True:
+if False:
     inDir=os.path.join("/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/DATA_SBOX/",patientId)
     outDir=os.path.join("/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/PY_DATA",patientId)
 else:
