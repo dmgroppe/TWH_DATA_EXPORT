@@ -79,9 +79,8 @@ def getImplantDate(sub_num_str):
 
 
 ### START OF MAIN FUNCTION ###
-# TODO maybe just have filename as input and grab patient_id?
 if len(sys.argv)==1:
-    print('Usage: lay2npz.py lay_file_and_path patient_id out_dir (e.g., ../blah.lay TWH081)')
+    print('Usage: lay2npz.py lay_file_and_path patient_id out_dir (e.g., ../TWH081/blah.lay TWH081 ../PY_DATA/TWH081)')
     exit()
 if len(sys.argv)!=4:
     raise Exception('Error: lay2npz.py requires 3 arguments: lay_file_and_path patient_id out_dir')

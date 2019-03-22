@@ -200,7 +200,7 @@ for f in eegFiles:
     # Save seizure data frame as tsv in case it has been changed
     print('Saving seizure info to %s' % szrDfFnameFull)
     szrDf.to_csv(szrDfFnameFull,sep='\t',index=False)
-    szrDf.to_pickle("tempSzrDf.pkl")
+    # szrDf.to_pickle("tempSzrDf.pkl")
 
     np.savez(npzFnameFull,
             ieeg=npz['ieeg'],
