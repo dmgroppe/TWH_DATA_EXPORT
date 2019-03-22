@@ -20,5 +20,6 @@ else:
 for f in os.listdir(inDir):
     if f.endswith('.lay'):
         cmnd="python lay2npz.py '"+os.path.join(inDir,f)+"' "+patientId+" '"+outDir+"'"
+        print("*******************************************")
         print(cmnd)
-        #os.system(cmnd)
+        os.system(cmnd)
