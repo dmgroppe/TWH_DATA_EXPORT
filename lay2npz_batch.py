@@ -15,7 +15,8 @@ if False:
     outDir=os.path.join("/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/PY_DATA",patientId)
 else:
     inDir=os.path.join("/media/dgroppe/Seagate Expansion Drive/PersystFormat/",patientId)
-    outDir=os.path.join("/media/dgroppe/ValianteLabEuData/PY_DATA/",patientId)
+    #outDir=os.path.join("/media/dgroppe/ValianteLabEuData/PY_DATA/",patientId)
+    outDir = os.path.join("/media/dgroppe/Seagate Backup Plus Drive/PY_DATA/", patientId)
 #Usage: lay2npz.py lay_file_and_path patient_id out_dir (e.g., ../TWH001/blah.lay TWH001 ../PY_DATA/TWH001)
 for f in os.listdir(inDir):
     if f.endswith('.lay'):
