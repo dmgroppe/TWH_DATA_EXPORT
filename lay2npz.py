@@ -222,6 +222,10 @@ while cursor<n_tpt:
             srate_hz=clip_hdr['srate_hz'],
             lay_fname=just_lay_fname,
             days_since_implant=days_since_implant)
+    # Compress npz file
+    cmnd="bzip2 "+"'"+os.path.join(out_path,ieeg_fname)+"'"
+    print('Running: %s' % cmnd)
+    os.system(cmnd)
 
     # Save numeric data in MATLAB format
     # mat_dict=dict()

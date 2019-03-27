@@ -21,13 +21,14 @@ def checkUnique(nameList):
 
 ###### Start of main function
 if len(sys.argv)==1:
-    print('Usage: createLayElecRecon.py sub_id (e.g., createLayElecRecon.py TWH018)')
+    print('Usage: createLayElecRecon.py sub_id (e.g., createLayElecRecon.py TWH018_layChan.tsv)')
     exit()
 if len(sys.argv)!=2:
-    raise Exception('Error: createLayElecRecon.py requires 1 argument: sub_id')
+    raise Exception('Error: createLayElecRecon.py requires 1 argument: TWH018_layChan.tsv')
 
 # Import Parameter(s) from command line
-sub = sys.argv[1]
+layFname=sys.argv[1]
+sub = layFname.split('_')[0]
 
 #fsdir='/Applications/freesurfer/subjects'
 fsdir=os.environ['SUBJECTS_DIR']
@@ -80,9 +81,6 @@ print("%d iELVis channels found" % len(ielvisNames))
 checkUnique(ielvisNames)
 
 # import channel names from lay file (NOT importing data)
-# TODO automatically get lay filename somehow
-layFname='/Users/davidgroppe/ONGOING/PERSYST_SBOX/PERSYST_DATA_LONG/TWH056/TWH056_ShGa_dbf43bc5-601b-4e71-9b2d-175ea763242f-archive.lay'
-#layFname='/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/DATA_SBOX/TWH018_2402fec8-303e-4afe-b398-725f90dcffb7_clip.lay'
 [eegHdr, eegData]=lr.layread(layFname,importDat=False)
 layChanMap=eegHdr['rawheader']['channelmap']
 layNames=lr.get_eeg_chan_names(eegHdr['rawheader']['channelmap'])
