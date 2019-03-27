@@ -32,7 +32,7 @@ sub = layFname.split('_')[0]
 
 #fsdir='/Applications/freesurfer/subjects'
 fsdir=os.environ['SUBJECTS_DIR']
-chanMapDir='/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/LAY2IELVIS_MAPS' #TODO get this somewhere?
+chanMapDir='LAY2IELVIS_MAPS' #TODO get this somewhere?
 
 # Load mapping between iELVis and lay filenames if it exists
 lay2ielvisFname=os.path.join(chanMapDir,sub+"_lay2ielvis.tsv")
@@ -81,13 +81,20 @@ print("%d iELVis channels found" % len(ielvisNames))
 checkUnique(ielvisNames)
 
 # import channel names from lay file (NOT importing data)
-[eegHdr, eegData]=lr.layread(layFname,importDat=False)
-layChanMap=eegHdr['rawheader']['channelmap']
-layNames=lr.get_eeg_chan_names(eegHdr['rawheader']['channelmap'])
+# [eegHdr, eegData]=lr.layread(layFname,importDat=False)
+# layChanMap=eegHdr['rawheader']['channelmap']
+# layNames=lr.get_eeg_chan_names(eegHdr['rawheader']['channelmap'])
+# import lay channel names from text file
+layChanFname=os.path.join('LAY2IELVIS_MAPS',sub+'_layChan.txt')
+layNamesDf=pd.read_csv(layChanFname,header=0)
+# print(layNamesDf.head())
+layNames=list()
+for ct in range(layNamesDf.shape[0]):
+    layNames.append(layNamesDf.iloc[ct,0])
+
 nLayChan=len(layNames)
 print("%d lay channels found" % nLayChan)
 checkUnique(layNames)
-
 
 # Try to find an iELVis channel name for each lay channel and vice versa
 ielvisNamesMissed=list()
@@ -106,10 +113,13 @@ for ielChan in ielvisNames:
         iel2layFullDict[ielChan]=layNames[layId]
     else:
         ielvisNamesMissed.append(ielChan)
-print('iELVis names without Lay partner:')
+print('%d iELVis names without Lay partner:' % len(ielvisNamesMissed))
 print(ielvisNamesMissed)
-print('Lay names without iELVis partner:')
-layNamesMissed=np.setdiff1d(layNames,layNamesUsed)
+layNamesUsedLower=list()
+for tempName in layNamesUsed:
+    layNamesUsedLower.append(tempName.lower())
+layNamesMissed=np.setdiff1d(layNamesLower,layNamesUsedLower)
+print('%d Lay names without iELVis partner:' % len(layNamesMissed))
 print(layNamesMissed)
 if (len(ielvisNamesMissed)>0) or (len(layNamesMissed)>0):
     print("Exiting. You need to solve missed names by editting %s " % lay2ielvisFname)

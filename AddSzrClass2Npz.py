@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import sys
+from shutil import copyfile
 
 ####### HELPER FUNCS
 
@@ -35,46 +36,81 @@ def createSzrDf(patient_id,dataRootDir,implantDateDt):
     szrDf = pd.DataFrame(data=tempDict)
     return szrDf, szrTsvFnameFull
 
-def getSzrClass(secondsSinceImplant,szrDf,npzFname):
-    nTpt=len(secondsSinceImplant)
-    szrClass=np.zeros(nTpt) # 0=non-szr, 1=clinical szr, 2=subclinical szr, 3=szr of unknown type
 
-    nSzr=szrDf.shape[0]
-    uniqSzrIds=[]
-    # Loop over all time points to see if they lie within a szr
-    for a in range(nTpt):
-        szrId=inSzr(secondsSinceImplant[a],szrDf['OnsetInSecFromImplant'],szrDf['OffsetInSecFromImplant'])
-        if szrId>0:
-            szrClass[a] =szrType2Num(szrDf['SzrType'][szrId])
-            if szrId not in uniqSzrIds:
-                uniqSzrIds.append(szrId)
-    # Update szr data frame to indicate which szrs occurred in this file (if any)
-    print('uniqSzrIds {}'.format(uniqSzrIds))
-    for szrId in uniqSzrIds:
-        if len(szrDf['AppearsInTheseFiles'][szrId])>0:
-            szrDf.loc[szrId, 'AppearsInTheseFiles'] = szrDf.loc[szrId, 'AppearsInTheseFiles']+', '+npzFname
-        else:
-            szrDf.loc[szrId, 'AppearsInTheseFiles']=npzFname
+def getSzrClass(secondsSinceImplant, szrDf, npzFname):
+    nTpt = len(secondsSinceImplant)
+    szrClass = np.zeros(nTpt)  # 0=non-szr, 1=clinical szr, 2=subclinical szr, 3=szr of unknown type
+
+    # See if any seizure offset or onset times fall within the time window of the data
+    szrsPresent = False
+    nSzr = szrDf.shape[0]
+    for szr in range(nSzr):
+        if (szrDf['OnsetInSecFromImplant'].loc[szr] >= secondsSinceImplant[0]) and (
+                szrDf['OnsetInSecFromImplant'].loc[szr] <= secondsSinceImplant[-1]):
+            szrsPresent = True
+            break
+        if (szrDf['OffsetInSecFromImplant'].loc[szr] >= secondsSinceImplant[0]) and (
+                szrDf['OffsetInSecFromImplant'].loc[szr] <= secondsSinceImplant[-1]):
+            szrsPresent = True
+            break
+
+    # See if file onset falls within any szr onset an offset
+    # This would capture the extremely unlikely instance of a seizure that starts before file onset
+    # and ends after file offset
+    if szrsPresent==False:
+        for szr in range(nSzr):
+            if (szrDf['OnsetInSecFromImplant'].loc[szr]<secondsSinceImplant[0]) and (szrDf['OffsetInSecFromImplant'].loc[szr]>secondsSinceImplant[0]):
+                szrsPresent=True
+                break
+
+    if szrsPresent:
+        # Loop over all time points to see if they lie within a szr
+        uniqSzrIds=[]
+        for a in range(nTpt):
+            szrId=inSzr(secondsSinceImplant[a],szrDf['OnsetInSecFromImplant'],szrDf['OffsetInSecFromImplant'])
+            if szrId>0:
+                szrClass[a] =szrType2Num(szrDf['SzrType'][szrId])
+                if szrId not in uniqSzrIds:
+                    uniqSzrIds.append(szrId)
+        # Update szr data frame to indicate which szrs occurred in this file (if any)
+        print('uniqSzrIds {}'.format(uniqSzrIds))
+        for szrId in uniqSzrIds:
+            if len(szrDf['AppearsInTheseFiles'][szrId])>0:
+                szrDf.loc[szrId, 'AppearsInTheseFiles'] = szrDf.loc[szrId, 'AppearsInTheseFiles']+', '+npzFname
+            else:
+                szrDf.loc[szrId, 'AppearsInTheseFiles']=npzFname
+    else:
+        print('** No Seizures Found in this File **')
     return szrClass
 
-# def getSzrClass(secondsSinceImplant,subnum,implantDateDt):
+
+# def getSzrClass(secondsSinceImplant,szrDf,npzFname):
 #     nTpt=len(secondsSinceImplant)
 #     szrClass=np.zeros(nTpt) # 0=non-szr, 1=clinical szr, 2=subclinical szr, 3=szr of unknown type
-#     (szrOnsetDt, szrOffsetDt, szrType) = import_szr_info(subnum)
 #
-#     # Convert szr onset and offset times into the # of seconds since midnight on the day of the implant
-#     # since that corresponds to time 0 in secondsSinceImplant
-#     nSzr=len(szrOnsetDt)
-#     szrOnsetSec=np.zeros(nSzr)
-#     szrOffsetSec=np.zeros(nSzr)
-#     for a in range(nSzr):
-#         szrOnsetSec[a]=(szrOnsetDt[a]-implantDateDt).total_seconds()
-#         szrOffsetSec[a] = (szrOffsetDt[a] - implantDateDt).total_seconds()
+#     # See if any seizure offset or onset times fall within the time window of the data
+#
+#     # See if file onset falls within any szr onset an offset
+#     # This would capture the extremely unlikely instance of a seizure that starts before file onset
+#     # and ends after file offset
+#
+#
+#     nSzr=szrDf.shape[0]
+#     uniqSzrIds=[]
 #     # Loop over all time points to see if they lie within a szr
 #     for a in range(nTpt):
-#         szrId=inSzr(secondsSinceImplant[a],szrOnsetSec,szrOffsetSec)
+#         szrId=inSzr(secondsSinceImplant[a],szrDf['OnsetInSecFromImplant'],szrDf['OffsetInSecFromImplant'])
 #         if szrId>0:
-#             szrClass[a]=szrType2Num(szrType[szrId])
+#             szrClass[a] =szrType2Num(szrDf['SzrType'][szrId])
+#             if szrId not in uniqSzrIds:
+#                 uniqSzrIds.append(szrId)
+#     # Update szr data frame to indicate which szrs occurred in this file (if any)
+#     print('uniqSzrIds {}'.format(uniqSzrIds))
+#     for szrId in uniqSzrIds:
+#         if len(szrDf['AppearsInTheseFiles'][szrId])>0:
+#             szrDf.loc[szrId, 'AppearsInTheseFiles'] = szrDf.loc[szrId, 'AppearsInTheseFiles']+', '+npzFname
+#         else:
+#             szrDf.loc[szrId, 'AppearsInTheseFiles']=npzFname
 #     return szrClass
 
 
@@ -91,7 +127,7 @@ def szrType2Num(szrTypeStr):
 
         
 def inSzr(timePt,szrOnsetSec,szrOffsetSec):
-    """ Also Yo """
+    """ Also TODO """
     nSzr=len(szrOnsetSec)
     szrId=0
     for a in range(nSzr):
@@ -99,6 +135,7 @@ def inSzr(timePt,szrOnsetSec,szrOffsetSec):
             szrId=a
             break
     return szrId
+
 
 def import_szr_info(patient_id):
     """ Import seizure onset/offset as date time variables and szr type (clinical, electrographic, or unspecified) from
@@ -163,12 +200,13 @@ if len(sys.argv)!=2:
     raise Exception('Error: AddSzrClass2Npz.py requires 1 argument')
 
 subnum=sys.argv[1]
+#TODO make below an argument
 dataRootDir='/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/PY_DATA/TWH'+subnum
 patient_id='TWH'+subnum
 eegFiles=list()
 print('Found the following iEEG data files:')
 for f in os.listdir(dataRootDir):
-    if f.endswith('.npz') and f.startswith(patient_id):
+    if f.endswith('.npz.bz2') and f.startswith(patient_id):
         print(f)
         eegFiles.append(f)
 print('%d files found' % len(eegFiles))
@@ -183,16 +221,26 @@ implantDateDt = datetime.strptime(implantDateStr, '%m/%d/%Y')
 # print(eegFiles[12])
 # exit()
 
-# Loop over npz files containing iEEG data
-for f in eegFiles:
-#for f in eegFiles[12:13]:
+# Loop over npz files containing iEEG data TWH081_849005-5d9cc7db-12.npz.bz2
+#for f in eegFiles:
+for f in eegFiles[10:11]: # process the one file containing a szr
     print('Adding szr class time series to %s' % f)
     npzFnameFull=os.path.join(dataRootDir,f)
+    spltStr=npzFnameFull.split('.')
+    npzFnameFullNpz=spltStr[0]+'.'+spltStr[1] # the npz filename after it is uncompressed
     justFname=npzFnameFull.split('/')[-1]
     tempFname='temp_'+justFname
-    print('Moving original file to %s' % tempFname)
-    os.rename(npzFnameFull,tempFname)
-    npz=np.load(tempFname)
+    spltStr=tempFname.split('.')
+    tempFnameNpz=spltStr[0]+'.'+spltStr[1] # the temp filename after it is uncompressed
+    # print('Moving original file to %s' % tempFname)
+    # os.rename(npzFnameFull,tempFname)
+    print('Copying original file to %s' % tempFname)
+    copyfile(npzFnameFull,tempFname)
+    print('Uncompressing %s ' % tempFname)
+    cmnd='gunzip '+tempFname
+    print(cmnd)
+    os.system(cmnd)
+    npz=np.load(tempFnameNpz) # Load uncompressed temp file
 
     #szrClass=getSzrClass(npz['seconds_since_implant'],subnum,implantDateDt)
     szrClass = getSzrClass(npz['seconds_since_implant'], szrDf, justFname)
@@ -202,7 +250,7 @@ for f in eegFiles:
     szrDf.to_csv(szrDfFnameFull,sep='\t',index=False)
     # szrDf.to_pickle("tempSzrDf.pkl")
 
-    np.savez(npzFnameFull,
+    np.savez(npzFnameFullNpz,
             ieeg=npz['ieeg'],
             chan_names=npz['chan_names'],
             time_of_day_sec=npz['time_of_day_sec'],
@@ -213,7 +261,15 @@ for f in eegFiles:
             szr_class=szrClass,
             days_since_implant=npz['days_since_implant'])
 
+    print('Removing old compressed npz file')
+    os.remove(npzFnameFull)
+
+    print('Compressing npz file')
+    cmnd = "bzip2 " + "'" + npzFnameFullNpz + "'"
+    print(cmnd)
+    os.system(cmnd)
+
     print('Removing temp file')
-    os.remove(tempFname)
+    os.remove(tempFnameNpz)
 
 print('Done!!!')
