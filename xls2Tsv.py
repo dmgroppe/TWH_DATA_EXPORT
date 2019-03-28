@@ -14,7 +14,7 @@ if len(sys.argv)!=2:
 
 sub=sys.argv[1]
 
-xlsFname='/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/PRIVATE/ANON_SeizureCounts_20181004.xlsx'
+xlsFname='PRIVATE/ANON_SeizureCounts_20181004.xlsx'
 # df=pd.read_excel(xlsFname)
 xl = pd.ExcelFile(xlsFname)
 print("THESE ARE ALL THE SUBSHEETS IN VICTORIA'S MASTER XLS FILE:")

@@ -194,14 +194,14 @@ def getImplantDate(sub_num_str):
 ######## MAIN SCRIPT
 
 if len(sys.argv)==1:
-    print('Usage: AddSzrClass2Npz.py subnum (e.g, subnum=081)')
+    print('Usage: AddSzrClass2Npz.py subnum dataRootDir (e.g, 081 TWH_DATA_EXPORT/PY_DATA/TWH081')
     exit()
-if len(sys.argv)!=2:
-    raise Exception('Error: AddSzrClass2Npz.py requires 1 argument')
+if len(sys.argv)!=3:
+    raise Exception('Error: AddSzrClass2Npz.py requires 2 arguments')
 
 subnum=sys.argv[1]
-#TODO make below an argument
-dataRootDir='/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/PY_DATA/TWH'+subnum
+dataRootDir=sys.argv[2]
+#dataRootDir='/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/PY_DATA/TWH'+subnum
 patient_id='TWH'+subnum
 eegFiles=list()
 print('Found the following iEEG data files:')
@@ -222,8 +222,8 @@ implantDateDt = datetime.strptime(implantDateStr, '%m/%d/%Y')
 # exit()
 
 # Loop over npz files containing iEEG data TWH081_849005-5d9cc7db-12.npz.bz2
-#for f in eegFiles:
-for f in eegFiles[10:11]: # process the one file containing a szr
+for f in eegFiles:
+#for f in eegFiles[10:11]: # process the one file containing a szr
     print('Adding szr class time series to %s' % f)
     npzFnameFull=os.path.join(dataRootDir,f)
     spltStr=npzFnameFull.split('.')
