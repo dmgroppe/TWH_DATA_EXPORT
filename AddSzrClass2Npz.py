@@ -237,7 +237,8 @@ for f in eegFiles:
     print('Copying original file to %s' % tempFname)
     copyfile(npzFnameFull,tempFname)
     print('Uncompressing %s ' % tempFname)
-    cmnd='gunzip '+tempFname
+    #cmnd='gunzip '+tempFname
+    cmnd='bzip2 '+tempFname
     print(cmnd)
     os.system(cmnd)
     npz=np.load(tempFnameNpz) # Load uncompressed temp file
