@@ -2,8 +2,8 @@
 # This script finds all the patient directories in rootDir and then finds all the dat files
 # in each directory and then it compresses them.
 
-
 import os
+import sys
 
 subs=list()
 rootDir = '/media/dgroppe/Seagate Expansion Drive/PersystFormat/'
