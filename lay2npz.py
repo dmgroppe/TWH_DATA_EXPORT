@@ -16,6 +16,7 @@ import pickle
 import scipy.io as sio
 from datetime import datetime
 
+
 ##### USEFUL FUNCTIONS #####
 def rm_bad_chans(patient_id,ieeg,chan_names):
     """ Load names of artifact ridden channels from text file and removes them. Text file should be in
@@ -80,7 +81,7 @@ def getImplantDate(sub_num_str):
 
 ### START OF MAIN FUNCTION ###
 if len(sys.argv)==1:
-    print('Usage: lay2npz.py lay_file_and_path patient_id out_dir (e.g., ../TWH081/blah.lay TWH081 ../PY_DATA/TWH081)')
+    print('Usage: lay2npz.py lay_file_and_path patient_id out_dir (e.g., ../TWH081/blah.lay TWH081 ../PY_DATA)')
     exit()
 if len(sys.argv)!=4:
     raise Exception('Error: lay2npz.py requires 3 arguments: lay_file_and_path patient_id out_dir')
@@ -96,7 +97,7 @@ lay_fname_code_prefix=lay_fname.split('_')[-1].split('-')[0]
 just_lay_fname=lay_fname.split('/')[-1]
 
 # Load file
-debug=False
+debug=True
 if debug: #TODO undo debugging
     print('*********************** IN DEBUGGING MODE ***********************')
     [hdr, ieeg] = lr.layread(lay_fname, importDat=True, timeLength=3600 * 1000 + 60 * 1000)
@@ -149,7 +150,7 @@ implant_day_dt=datetime.strptime(implant_day_str,'%m/%d/%Y')
 clip_day_str=hdr['starttime'].split(' ')[0]
 clip_day_dt=datetime.strptime(clip_day_str,'%d-%b-%Y')
 day_dlt_dt=clip_day_dt-implant_day_dt
-days_since_implant=day_dlt_dt.days
+days_since_implant=day_dlt_dt.days # this is an integer
 seconds_since_implant=time_of_day_sec+day_dlt_dt.days*24*60*60
 
 # Get start time without year
@@ -192,7 +193,7 @@ while cursor<n_tpt:
     stop_id=np.min([n_tpt, cursor+n_tpt_per_hour])
     print('{} {}'.format(cursor,stop_id))
 
-    ieeg_fname = clip_hdr['patient_id'] + '_'+str(np.int(seconds_since_implant[cursor]))+'-'+lay_fname_code_prefix+'-'+str(subclip_ct)
+    ieeg_fname = clip_hdr['patient_id'] + '_'+str(np.int(seconds_since_implant[cursor]))+'-'+str(days_since_implant)+'-'+lay_fname_code_prefix+'-'+str(subclip_ct)
     print('Saving clip %s' % ieeg_fname)
 
     # Get the list of annotations that fall within the current clip
@@ -213,7 +214,11 @@ while cursor<n_tpt:
         annot_df = annot_df.append(tempDf, sort=False)
 
     # Save numeric data in NPZ format
-    np.savez(os.path.join(out_path,ieeg_fname),
+    out_path_subdir=os.path.join(out_path,'Day_'+str(days_since_implant)+'_'+lay_fname_code_prefix)
+    if not os.path.exists(out_path_subdir):
+        os.mkdir(out_path_subdir)
+    #np.savez(os.path.join(out_path,ieeg_fname),
+    np.savez(os.path.join(out_path_subdir,ieeg_fname),
             ieeg=ieeg[:,cursor:stop_id],
             chan_names=clip_hdr['channel_names'],
             patient_id=patient_id,
@@ -223,7 +228,7 @@ while cursor<n_tpt:
             lay_fname=just_lay_fname,
             days_since_implant=days_since_implant)
     # Compress npz file
-    cmnd="bzip2 "+"'"+os.path.join(out_path,ieeg_fname)+"'"
+    cmnd="bzip2 '"+os.path.join(out_path_subdir,ieeg_fname)+".npz'"
     print('Running: %s' % cmnd)
     os.system(cmnd)
 

@@ -1,0 +1,160 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1504\cocoasubrtf830
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 Monaco;\f2\fnil\fcharset0 Menlo-Regular;
+\f3\fnil\fcharset0 Menlo-Bold;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red255\green255\blue255;\red15\green112\blue3;
+}
+{\*\expandedcolortbl;;\csgenericrgb\c0\c0\c0;\csgenericrgb\c100000\c100000\c100000\c85000;\csgenericrgb\c5882\c43922\c1176;
+}
+\margl1440\margr1440\vieww10800\viewh10800\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\b\fs24 \cf0 ELECTRODE LOC FLOW:\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b0 \cf0 -Run extractElecStems.m to create TWH*.stemsAndNumber in elec_recon folder and TWH*_stemMapping.tsv\
+-Manually edit TWH*_stemMapping.tsv to indicate what lay file stem each iELVis stem maps to (e.g., \'93Grid\'94 to \'93Gr\'94)\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b \cf0 -Run layChans2Tsv.py to generate a text file a lay channel names:
+\b0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f1\fs20 \cf2 \cb3 \CocoaLigature0 python layChans2Tsv.py /Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT/DATA_SBOX/TWH081/TWH081_0b39c88c-9f9e-4691-ad77-5b0ec6d01d28-archive.lay
+\f0\fs24 \cf0 \cb1 \CocoaLigature1 \
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b \cf0 -Run twhExportFlow.m to export electrode info to BIDS-iEEG format
+\b0 \
+\
+<-PICKUP HERE (also add notes to diary as to what I did)\
+4b09d-archive.dat=16.6 GB\
+4b09d-archive.dat.bz2 5.1 GB
+\b \
+\
+DONE:\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b0 \cf0 -Organize npz files into directories by clip and day (day has been added to file name and subfolder name)
+\b \
+\
+TODO:\
+
+\b0 -see if there is a python viewer for EEG, if so, see what format it uses\
+-compress lay files for all subs but TWH066 (starting in notebook, need to convert it to script that loops over a set of patients)\
+-see if I\'92m discarding any channels I should keep, 
+\f2 [
+\f3\b \cf4 'event'
+\f2\b0 \cf0 ,
+\f3\b \cf4 'osat-ref'
+\f2\b0 \cf0 ,
+\f3\b \cf4 'pr-ref\'92
+\f2\b0 \cf0 ]<-this will be in layread.py\
+-move those into a separate file\
+
+\f0 -check for temporal continuity
+\b \
+
+\b0 Auto-bad channel detection code\
+\
+\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b \cf0 iEEG flow:\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b0 \cf0 -Fix dates on lay files from text files!!!!! (lay file dates are wrong due to anonymization)\
+-Read seizure onset and offset times from xls file and write to file via: xls2Tsv.py
+\b \
+
+\b0 -Run checkLayChanNamesAllClips.py to make sure channel names are consistent (and unique) across all lay files (TODO have this move *.lay, *.dat, and *.txt files to the wrong channel dir)\
+-Start to read in each file (lay2npz.py)<\'97update\
+\'97break it up into 1 hour chunks\
+---automatically detect bad channels\
+\'97automatically detect bad time points\
+\'97indicate which time points are in a seizure\
+1. Collect all annotations for all lay files into one file\
+2. Ensure seizure onset/offset annotations\
+3. Check to make sure montage is the same across all files\
+4. Systematically subsample data to identify bad channels that should be ignored [DG]\
+5. Loop over lay/dat files and break them into 1 hour or less clips: lay2npz.py (or preproc_lay_batch.py, most recent is data_export_edit.py?)\
+-Run 
+\f1\fs20 \cf2 \cb3 \CocoaLigature0 python AddSzrClass2Npz.py 081 to add seizure class time series to npz file
+\f0\fs24 \cf0 \cb1 \CocoaLigature1 \
+\
+-plot times recorded to see if there are any gaps or overlap between files\
+-concatenate all annotations and then remove any that include PHI\
+-order files from start to finish?\
+\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b \cf0 Done:
+\b0 \
+-figure out how to export szr onset and offset times from Victoria\'92s spreadsheet via ReadExcelSbox.ipynb\
+\
+0) If first time point is in a szr, set first class to szr\
+1) loop over time points\
+\'97if you hit another szr onset/offset, change class \
+\
+
+\b Pickup:\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b0 \cf0 -change npz filenames so that they have the time in seconds from the implant in it
+\b \
+
+\b0 -estimatePsdSbox.ipynb<-draft of tools for identifying bad channels; do not use avg reference, find some bad chans with Persyst\'92s review tool to come up with bad chan labels for TWH081, then work with some other datasets to create some training data; still need to see if a second round of channel rejection (after an avg. reference) is waranted\
+-convert items to minimal precision in that can be\
+-make \'91time_of_day_sec\'92 range from 0 to 24*3600\
+-see if anon export screws up date too. (and what it actually removes)\
+-Working with TWH081\
+-figure out how time is represented with export_sbox_lap when importing lay files\
+-update lay2npz.py to get szr onset and offset times from spreadsheet\
+-write code to ensure that szr onset-offset time pairs are valid\
+Finish polishing flow for exporting electrode info: twhExportFlow.m\
+-reading szr onset/offset times\
+\
+/Users/davidgroppe/PycharmProjects/TWH_DATA_EXPORT\
+\
+0) Check TODOs in code\
+1) write Python code for converting iELVis BIDS folders into Lay file chan names\
+2) add file with anatomical locations to BIDS-iEEG\
+3) add postimplant vox coordinate file to BIDS-iEEG\
+\
+\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b \cf0 ??:\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b0 \cf0 Start with TWH018 data in DATA_SBOX\
+Then move onto a sub for whom we have all onset and offset times\
+I have persyst data for TWH066-92 on Sonali drive; 66 has onset and offsets
+\b \
+\
+
+\b0 Can I find out max # of tpts without importing whole file?\
+Sonali:\
+ShGa=TWH056\
+BrSa=TWH058\
+-Get and number days from all clips\
+-Create classifier for automatically detecting bad channels\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b \cf0 \
+\
+find_bad_chans:
+\b0 \
+-make sure it works with multiple lay files\
+-make figures interactive\
+-note where to save bad chan list (enter \'93none\'94 if no bad chans)\
+\
+\
+
+\b export_sbox_lap:
+\b0 \
+-rm_bad_chans # TODO throw error if a bad channel listed that is not in chan_names\
+-indicate start time relative to something\
+\
+\
+\'97\'97\'97\
+NOTES: lay format used 32 bit floats}
