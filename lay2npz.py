@@ -165,6 +165,7 @@ time_of_day_sec=time_of_day_sec%(24*3600)
 # Have a separate output directory for each patient
 out_path=os.path.join(out_dir,clip_hdr['patient_id'])
 if os.path.isdir(out_path)==False:
+    print('Attempting to create: '+out_path)
     os.makedirs(out_path)
 
 # Load/create dataframe of annotations: annotation/szr onset/offset, time since implant in sec,
